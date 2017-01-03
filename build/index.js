@@ -1,1 +1,1212 @@
-"use strict";function createCommonjsModule(t,e){return e={exports:{}},t(e,e.exports),e.exports}function Backoff(t){t=t||{},this.ms=t.min||100,this.max=t.max||1e4,this.factor=t.factor||2,this.jitter=t.jitter>0&&t.jitter<=1?t.jitter:0,this.attempts=0}function Engine$1(t,e){return this instanceof Engine$1?(this.subs=[],t=index$5(t),this.protocol=t.protocol,this.host=t.host,this.query=t.query,this.port=t.port,this.opts=this.opts||{},this.path=e.path.replace(/\/$/,""),this.connected=!1,this.lastPing=null,this.pingInterval=2e4,void this.bindEvents()):new Engine$1(t,e)}function decodePacket(t){var e=t.charAt(0);return t.length>1?{type:packetslist[e],data:t.substring(1)}:{type:packetslist[e]}}function encoder(t,e){var n=encodeAsString(t);e([n])}function encodeAsString(t){var e="",n=!1;return e+=t.type,t.nsp&&"/"!=t.nsp&&(n=!0,e+=t.nsp),null!=t.id&&(n&&(e+=",",n=!1),e+=t.id),null!=t.data&&(n&&(e+=","),e+=JSON.stringify(t.data)),e}function decoder(t,e){var n=void 0;"string"==typeof t&&(n=decodeString(t)),e(n)}function decodeString(t){var e={},n=0;if(e.type=Number(t.charAt(0)),null==exports.types[e.type])return error();if("/"==t.charAt(n+1))for(e.nsp="";++n;){var o=t.charAt(n);if(","==o)break;if(e.nsp+=o,n==t.length)break}else e.nsp="/";var i=t.charAt(n+1);if(""!==i&&Number(i)==i){for(e.id="";++n;){var r=t.charAt(n);if(null==r||Number(r)!=r){--n;break}if(e.id+=t.charAt(n),n==t.length)break}e.id=Number(e.id)}if(t.charAt(++n))try{e.data=JSON.parse(t.substr(n))}catch(t){return error()}return e}function error(t){return{type:exports.ERROR,data:"parser error"}}function Socket$1(t,e){this.io=t,this.nsp=e,this.id=0,this.connected=!1,this.disconnected=!0,this.receiveBuffer=[],this.sendBuffer=[],this.io.autoConnect&&this.open()}function Manager(t,e){return this instanceof Manager?(e.path=e.path||"socket.io",this.nsps={},this.subs=[],this.opts=e,this.uri=t,this.readyState="closed",this.connected=!1,this.reconnection(e.reconnection!==!1),this.reconnectionAttempts(e.reconnectionAttempts||1/0),this.reconnectionDelay(e.reconnectionDelay||1e3),this.reconnectionDelayMax(e.reconnectionDelayMax||5e3),this.randomizationFactor(e.randomizationFactor||.5),this.backoff=new index$3({min:this.reconnectionDelay(),max:this.reconnectionDelayMax(),jitter:this.randomizationFactor()}),this.timeout(null==e.timeout?2e4:e.timeout),this.encoder=encoder,this.decoder=decoder,this.connecting=[],this.autoConnect=e.autoConnect!==!1,void(this.autoConnect&&this.open())):new Manager(t,e)}function lookup(t,e){if(!t)throw new Error("uri is required.");e=e||{};var n=url(t),o=n.source,i=n.id,r=n.path,s=cache[i]&&r in cache[i].nsps,c=e.forceNew||e["force new connection"]||!1===e.multiplex||s,a=void 0;return c?a=Manager(o,e):(cache[i]||(cache[i]=Manager(o,e)),a=cache[i]),a.socket(n.path)}var index$1=createCommonjsModule(function(t){function e(t){if(t)return n(t)}function n(t){for(var n in e.prototype)t[n]=e.prototype[n];return t}"undefined"!=typeof t&&(t.exports=e),e.prototype.on=e.prototype.addEventListener=function(t,e){return this._callbacks=this._callbacks||{},(this._callbacks["$"+t]=this._callbacks["$"+t]||[]).push(e),this},e.prototype.once=function(t,e){function n(){this.off(t,n),e.apply(this,arguments)}return n.fn=e,this.on(t,n),this},e.prototype.off=e.prototype.removeListener=e.prototype.removeAllListeners=e.prototype.removeEventListener=function(t,e){if(this._callbacks=this._callbacks||{},0==arguments.length)return this._callbacks={},this;var n=this._callbacks["$"+t];if(!n)return this;if(1==arguments.length)return delete this._callbacks["$"+t],this;for(var o,i=0;i<n.length;i++)if(o=n[i],o===e||o.fn===e){n.splice(i,1);break}return this},e.prototype.emit=function(t){this._callbacks=this._callbacks||{};var e=[].slice.call(arguments,1),n=this._callbacks["$"+t];if(n){n=n.slice(0);for(var o=0,i=n.length;o<i;++o)n[o].apply(this,e)}return this},e.prototype.listeners=function(t){return this._callbacks=this._callbacks||{},this._callbacks["$"+t]||[]},e.prototype.hasListeners=function(t){return!!this.listeners(t).length}}),slice=[].slice,index$2=function(t,e){if("string"==typeof e&&(e=t[e]),"function"!=typeof e)throw new Error("bind() requires a function");var n=slice.call(arguments,2);return function(){return e.apply(t,n.concat(slice.call(arguments)))}},index$3=Backoff;Backoff.prototype.duration=function(){var t=this.ms*Math.pow(this.factor,this.attempts++);if(this.jitter){var e=Math.random(),n=Math.floor(e*this.jitter*t);t=0==(1&Math.floor(10*e))?t-n:t+n}return 0|Math.min(t,this.max)},Backoff.prototype.reset=function(){this.attempts=0},Backoff.prototype.setMin=function(t){this.ms=t},Backoff.prototype.setMax=function(t){this.max=t},Backoff.prototype.setJitter=function(t){this.jitter=t};var indexOf=[].indexOf,index$4=function(t,e){if(indexOf)return t.indexOf(e);for(var n=0;n<t.length;++n)if(t[n]===e)return n;return-1},on=function(t,e,n){return t.on(e,n),{destroy:function(){t.removeListener(e,n)}}},rvalidchars=/^[\],:{}\s]*$/,rvalidescape=/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g,rvalidtokens=/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g,rvalidbraces=/(?:^|:|,)(?:\s*\[)+/g,rtrimLeft=/^\s+/,rtrimRight=/\s+$/,parsejson=function(t){return"string"==typeof t&&t?(t=t.replace(rtrimLeft,"").replace(rtrimRight,""),JSON.parse?JSON.parse(t):rvalidchars.test(t.replace(rvalidescape,"@").replace(rvalidtokens,"]").replace(rvalidbraces,""))?new Function("return "+t)():void 0):null},re=/^(?:(?![^:@]+:[^:@\/]*@)(http|https|ws|wss):\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?((?:[a-f0-9]{0,4}:){2,7}[a-f0-9]{0,4}|[^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/,parts=["source","protocol","authority","userInfo","user","password","host","port","relative","path","directory","file","query","anchor"],index$5=function(t){var e=t,n=t.indexOf("["),o=t.indexOf("]");n!=-1&&o!=-1&&(t=t.substring(0,n)+t.substring(n,o).replace(/:/g,";")+t.substring(o,t.length));for(var i=re.exec(t||""),r={},s=14;s--;)r[parts[s]]=i[s]||"";return n!=-1&&o!=-1&&(r.source=e,r.host=r.host.substring(1,r.host.length-1).replace(/;/g,":"),r.authority=r.authority.replace("[","").replace("]","").replace(/;/g,":"),r.ipv6uri=!0),r},GlobalEmitter=index$1({hasEmitte:!1});index$1(Engine$1.prototype);var packets={open:0,close:1,ping:2,pong:3,message:4,upgrade:5,noop:6},packetslist=Object.keys(packets);Engine$1.prototype.connect=function(){GlobalEmitter.hasEmitte||Engine$1.subEvents();var t=this.protocol+"://"+this.host+":"+this.port+"/"+this.path+"/?"+(this.query?this.query+"&":"")+"EIO=3&transport=websocket";wx.connectSocket({url:t})},Engine$1.prototype.onopen=function(){this.emit("open")},Engine$1.prototype.onclose=function(t){this.destroy(),this.emit("close",t)},Engine$1.prototype.onerror=function(t){this.emit("error"),wx.closeSocket()},Engine$1.prototype.onpacket=function(t){switch(t.type){case"open":this.onHandshake(parsejson(t.data));break;case"pong":this.setPing(),this.emit("pong");break;case"error":var e=new Error("server error");e.code=t.data,this.onerror(e);break;case"message":this.emit("data",t.data),this.emit("message",t.data)}},Engine$1.prototype.onHandshake=function(t){this.id=t.sid,this.pingInterval=t.pingInterval,this.pingTimeout=t.pingTimeout,this.setPing()},Engine$1.prototype.setPing=function(){var t=this;clearTimeout(this.pingIntervalTimer),this.pingIntervalTimer=setTimeout(function(){t.ping()},this.pingInterval)},Engine$1.prototype.ping=function(){this.emit("ping"),this._send(packets.ping+"probe")},Engine$1.prototype.write=Engine$1.prototype.send=function(t){this._send([packets.message,t].join(""))},Engine$1.prototype._send=function(t){wx.sendSocketMessage({data:t})},Engine$1.subEvents=function(){wx.onSocketOpen(function(){GlobalEmitter.emit("open")}),wx.onSocketClose(function(t){GlobalEmitter.emit("close",t)}),wx.onSocketError(function(t){GlobalEmitter.emit("error",t)}),wx.onSocketMessage(function(t){GlobalEmitter.emit("packet",decodePacket(t.data))}),GlobalEmitter.hasEmitte=!0},Engine$1.prototype.bindEvents=function(){this.subs.push(on(GlobalEmitter,"open",index$2(this,"onopen"))),this.subs.push(on(GlobalEmitter,"close",index$2(this,"onclose"))),this.subs.push(on(GlobalEmitter,"error",index$2(this,"onerror"))),this.subs.push(on(GlobalEmitter,"packet",index$2(this,"onpacket")))},Engine$1.prototype.destroy=function(){for(var t=void 0;t=this.subs.shift();)t.destroy();clearTimeout(this.pingIntervalTimer),this.readyState="closed",this.id=null,this.writeBuffer=[],this.prevBufferLen=0},exports.types=["CONNECT","DISCONNECT","EVENT","ACK","ERROR","BINARY_EVENT","BINARY_ACK"],index$1(Socket$1.prototype);var parser={CONNECT:0,DISCONNECT:1,EVENT:2,ACK:3,ERROR:4,BINARY_EVENT:5,BINARY_ACK:6},events={connect:1,connect_error:1,connect_timeout:1,connecting:1,disconnect:1,error:1,reconnect:1,reconnect_attempt:1,reconnect_failed:1,reconnect_error:1,reconnecting:1,ping:1,pong:1},emit=index$1.prototype.emit;Socket$1.prototype.subEvents=function(){if(!this.subs){var t=this.io;this.subs=[on(t,"open",index$2(this,"onopen")),on(t,"packet",index$2(this,"onpacket")),on(t,"close",index$2(this,"onclose"))]}},Socket$1.prototype.open=Socket$1.prototype.connect=function(){return this.connected?this:(this.subEvents(),this.io.open(),"open"==this.io.readyState&&this.onopen(),this)},Socket$1.prototype.onopen=function(){"/"!=this.nsp&&this.packet({type:parser.CONNECT})},Socket$1.prototype.onclose=function(t){this.connected=!1,this.disconnected=!0,delete this.id,this.emit("disconnect",t)},Socket$1.prototype.onpacket=function(t){if(t.nsp==this.nsp)switch(t.type){case parser.CONNECT:this.onconnect();break;case parser.EVENT:this.onevent(t);break;case parser.DISCONNECT:this.disconnect();break;case parser.ERROR:this.emit("error",t.data)}},Socket$1.prototype.onconnect=function(){this.connected=!0,this.disconnected=!1,this.emit("connect")},Socket$1.prototype.onevent=function(t){var e=t.data||[];this.connected?emit.apply(this,e):this.receiveBuffer.push(e)},Socket$1.prototype.close=Socket$1.prototype.disconnect=function(){return this.connected&&this.packet({type:parser.DISCONNECT}),this.destroy(),this.connected&&this.onclose("io client disconnect"),this},Socket$1.prototype.destroy=function(){if(this.subs){for(var t=0;t<this.subs.length;t++)this.subs[t].destroy();this.subs=null}this.io.destroy(this)},Socket$1.prototype.emit=function(){for(var t=arguments.length,e=Array(t),n=0;n<t;n++)e[n]=arguments[n];if(events.hasOwnProperty(e[0]))return emit.apply(this,e),this;var o=parser.EVENT,i={type:o,data:e,options:{}};return this.connected?this.packet(i):this.sendBuffer.push(i),this},Socket$1.prototype.packet=function(t){t.nsp=this.nsp,this.io.packet(t)};var has=Object.prototype.hasOwnProperty;index$1(Manager.prototype),Manager.prototype.open=Manager.prototype.connect=function(t){var e=this;if(~this.readyState.indexOf("open"))return this;this.engine=new Engine$1(this.uri,this.opts),this.readyState="opening";var n=this.engine;return this.subs.push(on(n,"open",function(){e.onopen(),t&&t()})),this.subs.push(on(n,"error",function(n){if(e.cleanup(),e.readyState="closed",e.emitAll("connect_error",n),t){var o=new Error("Connect error");o.data=n,t(o)}else e.maybeReconnectOnOpen()})),n.connect(),this},Manager.prototype.onopen=function(){this.cleanup(),this.readyState="open",this.emit("open");var t=this.engine;this.subs.push(on(t,"data",index$2(this,"ondata"))),this.subs.push(on(t,"ping",index$2(this,"onping"))),this.subs.push(on(t,"pong",index$2(this,"onpong"))),this.subs.push(on(t,"error",index$2(this,"onerror"))),this.subs.push(on(t,"close",index$2(this,"onclose")))},Manager.prototype.onclose=function(t){this.cleanup(),this.readyState="closed",this.emit("close",t),this._reconnection&&!this.skipReconnect&&this.reconnect()},Manager.prototype.onerror=function(t){this.emitAll("error")},Manager.prototype.onping=function(){this.lastPing=new Date,this.emitAll("ping")},Manager.prototype.onpong=function(){this.emitAll("pong",new Date-this.lastPing)},Manager.prototype.ondata=function(t){var e=this;this.decoder(t,function(t){e.emit("packet",t)})},Manager.prototype.packet=function(t){var e=this;this.encoder(t,function(n){for(var o=0;o<n.length;o++)e.engine.write(n[o],t.options)})},Manager.prototype.socket=function(t){var e=this.nsps[t];return e||(e=new Socket$1(this,t),this.nsps[t]=e),e},Manager.prototype.cleanup=function(){for(var t=void 0;t=this.subs.shift();)t.destroy();this.packetBuffer=[],this.lastPing=null},Manager.prototype.emitAll=function(){for(var t=arguments.length,e=Array(t),n=0;n<t;n++)e[n]=arguments[n];this.emit.apply(this,e);for(var o in this.nsps)has.call(this.nsps,o)&&this.nsps[o].emit.apply(this.nsps[o],e)},Manager.prototype.reconnect=function(){var t=this;return this.reconnecting||this.skipReconnect?this:void(this.backoff.attempts>=this._reconnectionAttempts?(this.backoff.reset(),this.emitAll("reconnect_failed"),this.reconnecting=!1):!function(){var e=t.backoff.duration();t.reconnecting=!0;var n=setTimeout(function(){t.emitAll("reconnect_attempt",t.backoff.attempts),t.emitAll("reconnecting",t.backoff.attempts),t.skipReconnect||t.open(function(e){e?(t.reconnecting=!1,t.reconnect(),t.emitAll("reconnect_error",e.data)):t.onreconnect()})},e);t.subs.push({destroy:function(){clearTimeout(n)}})}())},Manager.prototype.onreconnect=function(){var t=this.backoff.attempts;this.reconnecting=!1,this.backoff.reset(),this.updateSocketIds(),this.emitAll("reconnect",t)},Manager.prototype.updateSocketIds=function(){for(var t in this.nsps)has.call(this.nsps,t)&&(this.nsps[t].id=this.engine.id)},Manager.prototype.destroy=function(t){var e=index$4(this.connecting,t);~e&&this.connecting.splice(e,1),this.connecting.length||this.close()},Manager.prototype.close=Manager.prototype.disconnect=function(){this.skipReconnect=!0,this.reconnecting=!1,"opening"==this.readyState&&this.cleanup(),this.readyState="closed",this.engine&&this.engine.close()},Manager.prototype.reconnection=function(t){return arguments.length?(this._reconnection=!!t,this):this._reconnection},Manager.prototype.reconnectionAttempts=function(t){return arguments.length?(this._reconnectionAttempts=t,this):this._reconnectionAttempts},Manager.prototype.reconnectionDelay=function(t){return arguments.length?(this._reconnectionDelay=t,this.backoff&&this.backoff.setMin(t),this):this._reconnectionDelay},Manager.prototype.randomizationFactor=function(t){return arguments.length?(this._randomizationFactor=t,this.backoff&&this.backoff.setJitter(t),this):this._randomizationFactor},Manager.prototype.reconnectionDelayMax=function(t){return arguments.length?(this._reconnectionDelayMax=t,this.backoff&&this.backoff.setMax(t),this):this._reconnectionDelayMax},Manager.prototype.timeout=function(t){return arguments.length?(this._timeout=t,this):this._timeout},Manager.prototype.maybeReconnectOnOpen=function(){!this.reconnecting&&this._reconnection&&0===this.backoff.attempts&&this.reconnect()};var url=function(t){var e=index$5(t);e.port||(/^(http|ws)$/.test(e.protocol)?e.port="80":/^(http|ws)s$/.test(e.protocol)&&(e.port="443")),e.path=e.path||"/";var n=e.host.indexOf(":")!==-1,o=n?"["+e.host+"]":e.host;return e.id=e.protocol+"://"+o+":"+e.port,e},cache={};module.exports=lookup;
+'use strict';
+
+function createCommonjsModule(fn, module) {
+	return module = { exports: {} }, fn(module, module.exports), module.exports;
+}
+
+var index$1 = createCommonjsModule(function (module) {
+/**
+ * Expose `Emitter`.
+ */
+
+if (typeof module !== 'undefined') {
+  module.exports = Emitter;
+}
+
+/**
+ * Initialize a new `Emitter`.
+ *
+ * @api public
+ */
+
+function Emitter(obj) {
+  if (obj) return mixin(obj);
+}
+
+/**
+ * Mixin the emitter properties.
+ *
+ * @param {Object} obj
+ * @return {Object}
+ * @api private
+ */
+
+function mixin(obj) {
+  for (var key in Emitter.prototype) {
+    obj[key] = Emitter.prototype[key];
+  }
+  return obj;
+}
+
+/**
+ * Listen on the given `event` with `fn`.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.on =
+Emitter.prototype.addEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+  (this._callbacks['$' + event] = this._callbacks['$' + event] || [])
+    .push(fn);
+  return this;
+};
+
+/**
+ * Adds an `event` listener that will be invoked a single
+ * time then automatically removed.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.once = function(event, fn){
+  function on() {
+    this.off(event, on);
+    fn.apply(this, arguments);
+  }
+
+  on.fn = fn;
+  this.on(event, on);
+  return this;
+};
+
+/**
+ * Remove the given callback for `event` or all
+ * registered callbacks.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.off =
+Emitter.prototype.removeListener =
+Emitter.prototype.removeAllListeners =
+Emitter.prototype.removeEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+
+  // all
+  if (0 == arguments.length) {
+    this._callbacks = {};
+    return this;
+  }
+
+  // specific event
+  var callbacks = this._callbacks['$' + event];
+  if (!callbacks) return this;
+
+  // remove all handlers
+  if (1 == arguments.length) {
+    delete this._callbacks['$' + event];
+    return this;
+  }
+
+  // remove specific handler
+  var cb;
+  for (var i = 0; i < callbacks.length; i++) {
+    cb = callbacks[i];
+    if (cb === fn || cb.fn === fn) {
+      callbacks.splice(i, 1);
+      break;
+    }
+  }
+  return this;
+};
+
+/**
+ * Emit `event` with the given args.
+ *
+ * @param {String} event
+ * @param {Mixed} ...
+ * @return {Emitter}
+ */
+
+Emitter.prototype.emit = function(event){
+  this._callbacks = this._callbacks || {};
+  var args = [].slice.call(arguments, 1)
+    , callbacks = this._callbacks['$' + event];
+
+  if (callbacks) {
+    callbacks = callbacks.slice(0);
+    for (var i = 0, len = callbacks.length; i < len; ++i) {
+      callbacks[i].apply(this, args);
+    }
+  }
+
+  return this;
+};
+
+/**
+ * Return array of callbacks for `event`.
+ *
+ * @param {String} event
+ * @return {Array}
+ * @api public
+ */
+
+Emitter.prototype.listeners = function(event){
+  this._callbacks = this._callbacks || {};
+  return this._callbacks['$' + event] || [];
+};
+
+/**
+ * Check if this emitter has `event` handlers.
+ *
+ * @param {String} event
+ * @return {Boolean}
+ * @api public
+ */
+
+Emitter.prototype.hasListeners = function(event){
+  return !! this.listeners(event).length;
+};
+});
+
+/**
+ * Slice reference.
+ */
+
+var slice = [].slice;
+
+/**
+ * Bind `obj` to `fn`.
+ *
+ * @param {Object} obj
+ * @param {Function|String} fn or string
+ * @return {Function}
+ * @api public
+ */
+
+var index$2 = function(obj, fn){
+  if ('string' == typeof fn) fn = obj[fn];
+  if ('function' != typeof fn) throw new Error('bind() requires a function');
+  var args = slice.call(arguments, 2);
+  return function(){
+    return fn.apply(obj, args.concat(slice.call(arguments)));
+  }
+};
+
+/**
+ * Expose `Backoff`.
+ */
+
+var index$3 = Backoff;
+
+/**
+ * Initialize backoff timer with `opts`.
+ *
+ * - `min` initial timeout in milliseconds [100]
+ * - `max` max timeout [10000]
+ * - `jitter` [0]
+ * - `factor` [2]
+ *
+ * @param {Object} opts
+ * @api public
+ */
+
+function Backoff(opts) {
+  opts = opts || {};
+  this.ms = opts.min || 100;
+  this.max = opts.max || 10000;
+  this.factor = opts.factor || 2;
+  this.jitter = opts.jitter > 0 && opts.jitter <= 1 ? opts.jitter : 0;
+  this.attempts = 0;
+}
+
+/**
+ * Return the backoff duration.
+ *
+ * @return {Number}
+ * @api public
+ */
+
+Backoff.prototype.duration = function(){
+  var ms = this.ms * Math.pow(this.factor, this.attempts++);
+  if (this.jitter) {
+    var rand =  Math.random();
+    var deviation = Math.floor(rand * this.jitter * ms);
+    ms = (Math.floor(rand * 10) & 1) == 0  ? ms - deviation : ms + deviation;
+  }
+  return Math.min(ms, this.max) | 0;
+};
+
+/**
+ * Reset the number of attempts.
+ *
+ * @api public
+ */
+
+Backoff.prototype.reset = function(){
+  this.attempts = 0;
+};
+
+/**
+ * Set the minimum duration
+ *
+ * @api public
+ */
+
+Backoff.prototype.setMin = function(min){
+  this.ms = min;
+};
+
+/**
+ * Set the maximum duration
+ *
+ * @api public
+ */
+
+Backoff.prototype.setMax = function(max){
+  this.max = max;
+};
+
+/**
+ * Set the jitter
+ *
+ * @api public
+ */
+
+Backoff.prototype.setJitter = function(jitter){
+  this.jitter = jitter;
+};
+
+var indexOf = [].indexOf;
+
+var index$4 = function(arr, obj){
+  if (indexOf) return arr.indexOf(obj);
+  for (var i = 0; i < arr.length; ++i) {
+    if (arr[i] === obj) return i;
+  }
+  return -1;
+};
+
+/**
+ * Helper for subscriptions.
+ *
+ * @param {Object|EventEmitter} obj with `Emitter` mixin or `EventEmitter`
+ * @param {String} event name
+ * @param {Function} callback
+ * @api public
+ */
+
+var on = (function (obj, ev, fn) {
+  obj.on(ev, fn);
+  return {
+    destroy: function destroy() {
+      obj.removeListener(ev, fn);
+    }
+  };
+});
+
+/**
+ * JSON parse.
+ *
+ * @see Based on jQuery#parseJSON (MIT) and JSON2
+ * @api private
+ */
+
+var rvalidchars = /^[\],:{}\s]*$/;
+var rvalidescape = /\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;
+var rvalidtokens = /"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g;
+var rvalidbraces = /(?:^|:|,)(?:\s*\[)+/g;
+var rtrimLeft = /^\s+/;
+var rtrimRight = /\s+$/;
+
+var parsejson = function parsejson(data) {
+  if ('string' != typeof data || !data) {
+    return null;
+  }
+
+  data = data.replace(rtrimLeft, '').replace(rtrimRight, '');
+
+  // Attempt to parse using the native JSON parser first
+  if (JSON.parse) {
+    return JSON.parse(data);
+  }
+
+  if (rvalidchars.test(data.replace(rvalidescape, '@').replace(rvalidtokens, ']').replace(rvalidbraces, ''))) {
+    return new Function('return ' + data)();
+  }
+};
+
+/**
+ * Parses an URI
+ *
+ * @author Steven Levithan <stevenlevithan.com> (MIT license)
+ * @api private
+ */
+
+var re = /^(?:(?![^:@]+:[^:@\/]*@)(http|https|ws|wss):\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?((?:[a-f0-9]{0,4}:){2,7}[a-f0-9]{0,4}|[^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
+
+var parts = [
+    'source', 'protocol', 'authority', 'userInfo', 'user', 'password', 'host', 'port', 'relative', 'path', 'directory', 'file', 'query', 'anchor'
+];
+
+var index$5 = function parseuri(str) {
+    var src = str,
+        b = str.indexOf('['),
+        e = str.indexOf(']');
+
+    if (b != -1 && e != -1) {
+        str = str.substring(0, b) + str.substring(b, e).replace(/:/g, ';') + str.substring(e, str.length);
+    }
+
+    var m = re.exec(str || ''),
+        uri = {},
+        i = 14;
+
+    while (i--) {
+        uri[parts[i]] = m[i] || '';
+    }
+
+    if (b != -1 && e != -1) {
+        uri.source = src;
+        uri.host = uri.host.substring(1, uri.host.length - 1).replace(/;/g, ':');
+        uri.authority = uri.authority.replace('[', '').replace(']', '').replace(/;/g, ':');
+        uri.ipv6uri = true;
+    }
+
+    return uri;
+};
+
+/**
+ * Compiles a querystring
+ * Returns string representation of the object
+ *
+ * @param {Object}
+ * @api private
+ */
+
+var encode = function (obj) {
+  var str = '';
+
+  for (var i in obj) {
+    if (obj.hasOwnProperty(i)) {
+      if (str.length) str += '&';
+      str += encodeURIComponent(i) + '=' + encodeURIComponent(obj[i]);
+    }
+  }
+
+  return str;
+};
+
+/**
+ * Parses a simple querystring into an object
+ *
+ * @param {String} qs
+ * @api private
+ */
+
+var decode = function(qs){
+  var qry = {};
+  var pairs = qs.split('&');
+  for (var i = 0, l = pairs.length; i < l; i++) {
+    var pair = pairs[i].split('=');
+    qry[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+  }
+  return qry;
+};
+
+var index$6 = {
+	encode: encode,
+	decode: decode
+};
+
+var GlobalEmitter = index$1({ hasEmitte: false });
+
+index$1(Engine$1.prototype);
+
+var packets = {
+  open: 0, // non-ws
+  close: 1, // non-ws
+  ping: 2,
+  pong: 3,
+  message: 4,
+  upgrade: 5,
+  noop: 6
+};
+
+var packetslist = Object.keys(packets);
+
+function Engine$1(uri, opts) {
+  if (!(this instanceof Engine$1)) return new Engine$1(uri, opts);
+
+  this.subs = [];
+  uri = index$5(uri);
+  this.protocol = uri.protocol;
+  this.host = uri.host;
+
+  if (uri.query) opts.query = uri.query;
+  this.query = opts.query || {};
+  if ('string' === typeof this.query) this.query = index$6.decode(this.query);
+
+  this.port = uri.port;
+  this.opts = this.opts || {};
+  this.path = opts.path.replace(/\/$/, '');
+  this.connected = false;
+  this.lastPing = null;
+  this.pingInterval = 20000;
+
+  if (opts.extraHeaders && Object.keys(opts.extraHeaders).length > 0) {
+    this.extraHeaders = opts.extraHeaders;
+  }
+
+  // init bind with GlobalEmitter
+  this.bindEvents();
+}
+
+Engine$1.prototype.connect = function () {
+  if (!GlobalEmitter.hasEmitte) Engine$1.subEvents();
+  this.query.EIO = 3;
+  this.query.transport = 'websocket';
+  var url = this.protocol + '://' + this.host + ':' + this.port + '/' + this.path + '/?' + index$6.encode(this.query);
+
+  wx.connectSocket({ url: url, header: this.extraHeaders });
+};
+
+Engine$1.prototype.onopen = function () {
+  this.emit('open');
+};
+
+Engine$1.prototype.onclose = function (reason) {
+  // clean all bind with GlobalEmitter
+  this.destroy();
+  this.emit('close', reason);
+};
+
+Engine$1.prototype.onerror = function (reason) {
+  this.emit('error');
+  // 如果 wx.connectSocket 还没回调 wx.onSocketOpen，而先调用 wx.closeSocket，那么就做不到关闭 WebSocket 的目的。
+  wx.closeSocket();
+};
+
+Engine$1.prototype.onpacket = function (packet) {
+  switch (packet.type) {
+    case 'open':
+      this.onHandshake(parsejson(packet.data));
+      break;
+    case 'pong':
+      this.setPing();
+      this.emit('pong');
+      break;
+    case 'error':
+      {
+        var error = new Error('server error');
+        error.code = packet.data;
+        this.onerror(error);
+        break;
+      }
+    case 'message':
+      this.emit('data', packet.data);
+      this.emit('message', packet.data);
+      break;
+  }
+};
+
+Engine$1.prototype.onHandshake = function (data) {
+  this.id = data.sid;
+  this.pingInterval = data.pingInterval;
+  this.pingTimeout = data.pingTimeout;
+  this.setPing();
+};
+
+Engine$1.prototype.setPing = function () {
+  var _this = this;
+
+  clearTimeout(this.pingIntervalTimer);
+  this.pingIntervalTimer = setTimeout(function () {
+    _this.ping();
+  }, this.pingInterval);
+};
+
+Engine$1.prototype.ping = function () {
+  this.emit('ping');
+  this._send(packets.ping + 'probe');
+};
+
+Engine$1.prototype.write = Engine$1.prototype.send = function (packet) {
+  this._send([packets.message, packet].join(''));
+};
+
+Engine$1.prototype._send = function (data) {
+  wx.sendSocketMessage({ data: data });
+};
+Engine$1.subEvents = function () {
+  wx.onSocketOpen(function () {
+    GlobalEmitter.emit('open');
+  });
+  wx.onSocketClose(function (reason) {
+    GlobalEmitter.emit('close', reason);
+  });
+  wx.onSocketError(function (reason) {
+    GlobalEmitter.emit('error', reason);
+  });
+  wx.onSocketMessage(function (resp) {
+    GlobalEmitter.emit('packet', decodePacket(resp.data));
+  });
+  GlobalEmitter.hasEmitte = true;
+};
+
+Engine$1.prototype.bindEvents = function () {
+  this.subs.push(on(GlobalEmitter, 'open', index$2(this, 'onopen')));
+  this.subs.push(on(GlobalEmitter, 'close', index$2(this, 'onclose')));
+  this.subs.push(on(GlobalEmitter, 'error', index$2(this, 'onerror')));
+  this.subs.push(on(GlobalEmitter, 'packet', index$2(this, 'onpacket')));
+};
+
+Engine$1.prototype.destroy = function () {
+  var sub = void 0;
+  while (sub = this.subs.shift()) {
+    sub.destroy();
+  }
+
+  clearTimeout(this.pingIntervalTimer);
+  this.readyState = 'closed';
+  this.id = null;
+  this.writeBuffer = [];
+  this.prevBufferLen = 0;
+};
+
+function decodePacket(data) {
+  var type = data.charAt(0);
+  if (data.length > 1) {
+    return {
+      type: packetslist[type],
+      data: data.substring(1)
+    };
+  }
+  return { type: packetslist[type] };
+}
+
+exports.types = ['CONNECT', 'DISCONNECT', 'EVENT', 'ACK', 'ERROR', 'BINARY_EVENT', 'BINARY_ACK'];
+
+function encoder(obj, callback) {
+  // if (exports.BINARY_EVENT == obj.type || exports.BINARY_ACK == obj.type)
+  // TODO support binary packet
+  var encoding = encodeAsString(obj);
+  callback([encoding]);
+}
+
+function encodeAsString(obj) {
+  var str = '';
+  var nsp = false;
+
+  str += obj.type;
+  // if (exports.BINARY_EVENT == obj.type || exports.BINARY_ACK == obj.type) {}
+  // TODO support binary type
+
+  if (obj.nsp && '/' != obj.nsp) {
+    nsp = true;
+    str += obj.nsp;
+  }
+
+  if (null != obj.id) {
+    if (nsp) {
+      str += ',';
+      nsp = false;
+    }
+    str += obj.id;
+  }
+
+  if (null != obj.data) {
+    if (nsp) str += ',';
+    str += JSON.stringify(obj.data);
+  }
+
+  return str;
+}
+
+function decoder(obj, callback) {
+  var packet = void 0;
+  if ('string' == typeof obj) {
+    packet = decodeString(obj);
+  }
+  callback(packet);
+}
+
+function decodeString(str) {
+  var p = {};
+  var i = 0;
+  // look up type
+  p.type = Number(str.charAt(0));
+  if (null == exports.types[p.type]) return error();
+
+  // look up attachments if type binary
+
+  // look up namespace (if any)
+  if ('/' == str.charAt(i + 1)) {
+    p.nsp = '';
+    while (++i) {
+      var c = str.charAt(i);
+      if (',' == c) break;
+      p.nsp += c;
+      if (i == str.length) break;
+    }
+  } else {
+    p.nsp = '/';
+  }
+
+  // look up id
+  var next = str.charAt(i + 1);
+  if ('' !== next && Number(next) == next) {
+    p.id = '';
+    while (++i) {
+      var _c = str.charAt(i);
+      if (null == _c || Number(_c) != _c) {
+        --i;
+        break;
+      }
+      p.id += str.charAt(i);
+      if (i == str.length) break;
+    }
+    p.id = Number(p.id);
+  }
+
+  // look up json data
+  if (str.charAt(++i)) {
+    try {
+      p.data = JSON.parse(str.substr(i));
+    } catch (e) {
+      return error();
+    }
+  }
+  return p;
+}
+
+function error(data) {
+  return {
+    type: exports.ERROR,
+    data: 'parser error'
+  };
+}
+
+index$1(Socket$1.prototype);
+
+var parser = {
+  CONNECT: 0,
+  DISCONNECT: 1,
+  EVENT: 2,
+  ACK: 3,
+  ERROR: 4,
+  BINARY_EVENT: 5,
+  BINARY_ACK: 6
+};
+
+var events = {
+  connect: 1,
+  connect_error: 1,
+  connect_timeout: 1,
+  connecting: 1,
+  disconnect: 1,
+  error: 1,
+  reconnect: 1,
+  reconnect_attempt: 1,
+  reconnect_failed: 1,
+  reconnect_error: 1,
+  reconnecting: 1,
+  ping: 1,
+  pong: 1
+};
+
+var emit = index$1.prototype.emit;
+
+function Socket$1(io, nsp) {
+  this.io = io;
+  this.nsp = nsp;
+  this.id = 0; // sid
+  this.connected = false;
+  this.disconnected = true;
+  this.receiveBuffer = [];
+  this.sendBuffer = [];
+  if (this.io.autoConnect) this.open();
+}
+
+Socket$1.prototype.subEvents = function () {
+  if (this.subs) return;
+
+  var io = this.io;
+  this.subs = [on(io, 'open', index$2(this, 'onopen')), on(io, 'packet', index$2(this, 'onpacket')), on(io, 'close', index$2(this, 'onclose'))];
+};
+
+Socket$1.prototype.open = Socket$1.prototype.connect = function () {
+  if (this.connected) return this;
+  this.subEvents();
+  this.io.open(); // ensure open
+  if ('open' == this.io.readyState) this.onopen();
+  return this;
+};
+
+Socket$1.prototype.onopen = function () {
+  if ('/' != this.nsp) this.packet({ type: parser.CONNECT });
+};
+
+Socket$1.prototype.onclose = function (reason) {
+  this.connected = false;
+  this.disconnected = true;
+  delete this.id;
+  this.emit('disconnect', reason);
+};
+
+Socket$1.prototype.onpacket = function (packet) {
+  if (packet.nsp != this.nsp) return;
+
+  switch (packet.type) {
+    case parser.CONNECT:
+      this.onconnect();
+      break;
+    case parser.EVENT:
+      this.onevent(packet);
+      break;
+    case parser.DISCONNECT:
+      this.disconnect();
+      break;
+    case parser.ERROR:
+      this.emit('error', packet.data);
+      break;
+  }
+};
+
+Socket$1.prototype.onconnect = function () {
+  this.connected = true;
+  this.disconnected = false;
+  this.emit('connect');
+  // this.emitBuffered()
+};
+
+Socket$1.prototype.onevent = function (packet) {
+  var args = packet.data || [];
+
+  if (this.connected) {
+    emit.apply(this, args);
+  } else {
+    this.receiveBuffer.push(args);
+  }
+};
+
+Socket$1.prototype.close = Socket$1.prototype.disconnect = function () {
+  if (this.connected) {
+    this.packet({ type: parser.DISCONNECT });
+  }
+
+  this.destroy();
+
+  if (this.connected) {
+    this.onclose('io client disconnect');
+  }
+  return this;
+};
+
+Socket$1.prototype.destroy = function () {
+  if (this.subs) {
+    for (var i = 0; i < this.subs.length; i++) {
+      this.subs[i].destroy();
+    }
+    this.subs = null;
+  }
+  this.io.destroy(this);
+};
+
+Socket$1.prototype.emit = function () {
+  for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+
+  if (events.hasOwnProperty(args[0])) {
+    emit.apply(this, args);
+    return this;
+  }
+
+  var parserType = parser.EVENT;
+  // if (hasBin(args)) { parserType = parser.BINARY_EVENT; } // binary
+  var packet = { type: parserType, data: args, options: {} };
+
+  if (this.connected) {
+    this.packet(packet);
+  } else {
+    this.sendBuffer.push(packet);
+  }
+  return this;
+};
+
+Socket$1.prototype.packet = function (packet) {
+  packet.nsp = this.nsp;
+  this.io.packet(packet);
+};
+
+var has = Object.prototype.hasOwnProperty;
+
+index$1(Manager.prototype);
+
+function Manager(uri, opts) {
+  if (!(this instanceof Manager)) return new Manager(uri, opts);
+
+  opts.path = opts.path || 'socket.io';
+  this.nsps = {};
+  this.subs = [];
+  this.opts = opts;
+  this.uri = uri;
+  this.readyState = 'closed';
+  this.connected = false;
+  this.reconnection(opts.reconnection !== false);
+  this.reconnectionAttempts(opts.reconnectionAttempts || Infinity);
+  this.reconnectionDelay(opts.reconnectionDelay || 1000);
+  this.reconnectionDelayMax(opts.reconnectionDelayMax || 5000);
+  this.randomizationFactor(opts.randomizationFactor || 0.5);
+  this.backoff = new index$3({
+    min: this.reconnectionDelay(),
+    max: this.reconnectionDelayMax(),
+    jitter: this.randomizationFactor()
+  });
+  this.timeout(null == opts.timeout ? 20000 : opts.timeout);
+  this.encoder = encoder;
+  this.decoder = decoder;
+  this.connecting = [];
+  this.autoConnect = opts.autoConnect !== false;
+  if (this.autoConnect) this.open();
+}
+
+Manager.prototype.open = Manager.prototype.connect = function (fn) {
+  var _this = this;
+
+  if (~this.readyState.indexOf('open')) return this;
+
+  this.engine = new Engine$1(this.uri, this.opts);
+
+  this.readyState = 'opening';
+
+  var socket = this.engine;
+
+  this.subs.push(on(socket, 'open', function () {
+    _this.onopen();
+    fn && fn();
+  }));
+
+  this.subs.push(on(socket, 'error', function (data) {
+    _this.cleanup();
+    _this.readyState = 'closed';
+    _this.emitAll('connect_error', data);
+    if (fn) {
+      var error = new Error('Connect error');
+      error.data = data;
+      fn(error);
+    } else {
+      _this.maybeReconnectOnOpen();
+    }
+  }));
+
+  socket.connect();
+  return this;
+};
+
+Manager.prototype.onopen = function () {
+  this.cleanup();
+
+  this.readyState = 'open';
+  this.emit('open');
+
+  var socket = this.engine;
+  this.subs.push(on(socket, 'data', index$2(this, 'ondata')));
+  this.subs.push(on(socket, 'ping', index$2(this, 'onping')));
+  this.subs.push(on(socket, 'pong', index$2(this, 'onpong')));
+  this.subs.push(on(socket, 'error', index$2(this, 'onerror')));
+  this.subs.push(on(socket, 'close', index$2(this, 'onclose')));
+  // this.subs.push(on(this.decoder, 'decoded', bind(this, 'ondecoded')))
+};
+
+Manager.prototype.onclose = function (reason) {
+  this.cleanup();
+  this.readyState = 'closed';
+  this.emit('close', reason);
+  if (this._reconnection && !this.skipReconnect) this.reconnect();
+};
+
+Manager.prototype.onerror = function (reason) {
+  this.emitAll('error');
+};
+
+Manager.prototype.onping = function () {
+  this.lastPing = new Date();
+  this.emitAll('ping');
+};
+
+Manager.prototype.onpong = function () {
+  this.emitAll('pong', new Date() - this.lastPing);
+};
+
+Manager.prototype.ondata = function (data) {
+  var _this2 = this;
+
+  this.decoder(data, function (decoding) {
+    _this2.emit('packet', decoding);
+  });
+};
+
+Manager.prototype.packet = function (packet) {
+  var _this3 = this;
+
+  this.encoder(packet, function (encodedPackets) {
+    for (var i = 0; i < encodedPackets.length; i++) {
+      _this3.engine.write(encodedPackets[i], packet.options);
+    }
+  });
+};
+
+Manager.prototype.socket = function (nsp) {
+  var socket = this.nsps[nsp];
+  if (!socket) {
+    socket = new Socket$1(this, nsp);
+    this.nsps[nsp] = socket;
+  }
+  return socket;
+};
+
+Manager.prototype.cleanup = function () {
+  var sub = void 0;
+  while (sub = this.subs.shift()) {
+    sub.destroy();
+  }this.packetBuffer = [];
+  this.lastPing = null;
+};
+
+Manager.prototype.emitAll = function () {
+  for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+
+  this.emit.apply(this, args);
+  for (var nsp in this.nsps) {
+    if (has.call(this.nsps, nsp)) {
+      this.nsps[nsp].emit.apply(this.nsps[nsp], args);
+    }
+  }
+};
+
+Manager.prototype.reconnect = function () {
+  var _this4 = this;
+
+  if (this.reconnecting || this.skipReconnect) return this;
+
+  if (this.backoff.attempts >= this._reconnectionAttempts) {
+    this.backoff.reset();
+    this.emitAll('reconnect_failed');
+    this.reconnecting = false;
+  } else {
+    (function () {
+      var delay = _this4.backoff.duration();
+      _this4.reconnecting = true;
+      var timer = setTimeout(function () {
+        _this4.emitAll('reconnect_attempt', _this4.backoff.attempts);
+        _this4.emitAll('reconnecting', _this4.backoff.attempts);
+
+        if (_this4.skipReconnect) return;
+
+        _this4.open(function (err) {
+          if (err) {
+            _this4.reconnecting = false;
+            _this4.reconnect();
+            _this4.emitAll('reconnect_error', err.data);
+          } else {
+            _this4.onreconnect();
+          }
+        });
+      }, delay);
+
+      _this4.subs.push({
+        destroy: function destroy() {
+          clearTimeout(timer);
+        }
+      });
+    })();
+  }
+};
+
+Manager.prototype.onreconnect = function () {
+  var attempt = this.backoff.attempts;
+  this.reconnecting = false;
+  this.backoff.reset();
+  this.updateSocketIds();
+  this.emitAll('reconnect', attempt);
+};
+
+/**
+ * Update `socket.id` of all sockets
+ *
+ * @api private
+ */
+
+Manager.prototype.updateSocketIds = function () {
+  for (var nsp in this.nsps) {
+    if (has.call(this.nsps, nsp)) {
+      this.nsps[nsp].id = this.engine.id;
+    }
+  }
+};
+
+Manager.prototype.destroy = function (socket) {
+  var index = index$4(this.connecting, socket);
+  if (~index) this.connecting.splice(index, 1);
+  if (this.connecting.length) return;
+
+  this.close();
+};
+
+Manager.prototype.close = Manager.prototype.disconnect = function () {
+  this.skipReconnect = true;
+  this.reconnecting = false;
+  if ('opening' == this.readyState) {
+    // `onclose` will not fire because
+    // an open event never happened
+    this.cleanup();
+  }
+  this.readyState = 'closed';
+  if (this.engine) this.engine.close();
+};
+
+/**
+ * Sets the `reconnection` config.
+ *
+ * @param {Boolean} true/false if it should automatically reconnect
+ * @return {Manager} self or value
+ * @api public
+ */
+Manager.prototype.reconnection = function (v) {
+  if (!arguments.length) return this._reconnection;
+  this._reconnection = !!v;
+  return this;
+};
+
+/**
+ * Sets the reconnection attempts config.
+ *
+ * @param {Number} max reconnection attempts before giving up
+ * @return {Manager} self or value
+ * @api public
+ */
+Manager.prototype.reconnectionAttempts = function (v) {
+  if (!arguments.length) return this._reconnectionAttempts;
+  this._reconnectionAttempts = v;
+  return this;
+};
+
+/**
+ * Sets the delay between reconnections.
+ *
+ * @param {Number} delay
+ * @return {Manager} self or value
+ * @api public
+ */
+Manager.prototype.reconnectionDelay = function (v) {
+  if (!arguments.length) return this._reconnectionDelay;
+  this._reconnectionDelay = v;
+  this.backoff && this.backoff.setMin(v);
+  return this;
+};
+
+Manager.prototype.randomizationFactor = function (v) {
+  if (!arguments.length) return this._randomizationFactor;
+  this._randomizationFactor = v;
+  this.backoff && this.backoff.setJitter(v);
+  return this;
+};
+
+/**
+ * Sets the maximum delay between reconnections.
+ *
+ * @param {Number} delay
+ * @return {Manager} self or value
+ * @api public
+ */
+Manager.prototype.reconnectionDelayMax = function (v) {
+  if (!arguments.length) return this._reconnectionDelayMax;
+  this._reconnectionDelayMax = v;
+  this.backoff && this.backoff.setMax(v);
+  return this;
+};
+
+/**
+ * Sets the connection timeout. `false` to disable
+ *
+ * @return {Manager} self or value
+ * @api public
+ */
+Manager.prototype.timeout = function (v) {
+  if (!arguments.length) return this._timeout;
+  this._timeout = v;
+  return this;
+};
+
+/**
+ * Starts trying to reconnect if reconnection is enabled and we have not
+ * started reconnecting yet
+ *
+ * @api private
+ */
+Manager.prototype.maybeReconnectOnOpen = function () {
+  // Only try to reconnect if it's the first time we're connecting
+  if (!this.reconnecting && this._reconnection && this.backoff.attempts === 0) {
+    // keeps reconnection from firing twice for the same reconnection loop
+    this.reconnect();
+  }
+};
+
+var url = (function (uri) {
+  var obj = index$5(uri);
+
+  // make sure we treat `localhost:80` and `localhost` equally
+  if (!obj.port) {
+    if (/^(http|ws)$/.test(obj.protocol)) {
+      obj.port = '80';
+    } else if (/^(http|ws)s$/.test(obj.protocol)) {
+      obj.port = '443';
+    }
+  }
+
+  obj.path = obj.path || '/';
+  var ipv6 = obj.host.indexOf(':') !== -1;
+  var host = ipv6 ? '[' + obj.host + ']' : obj.host;
+
+  // define unique id
+  obj.id = obj.protocol + '://' + host + ':' + obj.port;
+
+  return obj;
+});
+
+var cache = {};
+
+function lookup(uri, opts) {
+  if (!uri) {
+    throw new Error('uri is required.');
+  }
+
+  opts = opts || {};
+
+  var parsed = url(uri);
+
+  var source = parsed.source;
+  var id = parsed.id;
+  var path = parsed.path;
+  var sameNamespace = cache[id] && path in cache[id].nsps;
+
+  var newConnection = opts.forceNew || opts['force new connection'] || false === opts.multiplex || sameNamespace;
+
+  // return new socket or from cache
+  var io = void 0;
+  if (newConnection) {
+    io = Manager(source, opts);
+  } else {
+    if (!cache[id]) {
+      cache[id] = Manager(source, opts);
+    }
+    io = cache[id];
+  }
+  return io.socket(parsed.path);
+}
+
+module.exports = lookup;

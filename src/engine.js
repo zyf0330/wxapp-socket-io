@@ -3,6 +3,7 @@ import on from './on'
 import parsejson from './parsejson'
 import bind from 'component-bind'
 import parseuri from 'parseuri'
+import parseqs from 'parseqs'
 
 export default Engine
 
@@ -29,22 +30,33 @@ function Engine(uri, opts) {
   uri = parseuri(uri)
   this.protocol = uri.protocol
   this.host = uri.host
-  this.query = uri.query
+
+  if (uri.query) opts.query = uri.query;
+  this.query = opts.query || {};
+  if ('string' === typeof this.query) this.query = parseqs.decode(this.query);
+
   this.port = uri.port
   this.opts = this.opts || {}
   this.path = opts.path.replace(/\/$/, '')
   this.connected = false
   this.lastPing = null
   this.pingInterval = 20000
+
+  if (opts.extraHeaders && Object.keys(opts.extraHeaders).length > 0) {
+    this.extraHeaders = opts.extraHeaders;
+  }
+
   // init bind with GlobalEmitter
   this.bindEvents()
 }
 
 Engine.prototype.connect = function() {
   if (!GlobalEmitter.hasEmitte) Engine.subEvents()
-  const url = `${this.protocol}://${this.host}:${this.port}/${this.path}/?${this.query ? `${this.query}&` : ''}EIO=3&transport=websocket`
+  this.query.EIO = 3
+  this.query.transport = 'websocket'
+  const url = `${this.protocol}://${this.host}:${this.port}/${this.path}/?${parseqs.encode(this.query)}`
 
-  wx.connectSocket({ url })
+  wx.connectSocket({ url, header: this.extraHeaders })
 }
 
 Engine.prototype.onopen = function() {
