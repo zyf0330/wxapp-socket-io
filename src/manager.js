@@ -96,7 +96,7 @@ Manager.prototype.onclose = function(reason) {
 }
 
 Manager.prototype.onerror = function(reason) {
-  this.emitAll('error')
+  this.emitAll('error', reason)
 }
 
 Manager.prototype.onping = function() {

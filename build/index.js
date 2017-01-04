@@ -467,7 +467,7 @@ Engine$1.prototype.connect = function () {
   this.query.EIO = 3;
   this.query.transport = 'websocket';
   var url = this.protocol + '://' + this.host + ':' + this.port + '/' + this.path + '/?' + index$6.encode(this.query);
-
+  console.log('WS HEADER:', this.extraHeaders);
   wx.connectSocket({ url: url, header: this.extraHeaders });
 };
 
@@ -482,7 +482,7 @@ Engine$1.prototype.onclose = function (reason) {
 };
 
 Engine$1.prototype.onerror = function (reason) {
-  this.emit('error');
+  this.emit('error', reason);
   // 如果 wx.connectSocket 还没回调 wx.onSocketOpen，而先调用 wx.closeSocket，那么就做不到关闭 WebSocket 的目的。
   wx.closeSocket();
 };
@@ -928,7 +928,7 @@ Manager.prototype.onclose = function (reason) {
 };
 
 Manager.prototype.onerror = function (reason) {
-  this.emitAll('error');
+  this.emitAll('error', reason);
 };
 
 Manager.prototype.onping = function () {

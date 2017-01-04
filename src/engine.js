@@ -70,7 +70,7 @@ Engine.prototype.onclose = function(reason) {
 }
 
 Engine.prototype.onerror = function(reason) {
-  this.emit('error')
+  this.emit('error', reason)
   // 如果 wx.connectSocket 还没回调 wx.onSocketOpen，而先调用 wx.closeSocket，那么就做不到关闭 WebSocket 的目的。
   wx.closeSocket()
 }
