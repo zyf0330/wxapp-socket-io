@@ -41,6 +41,7 @@ function Engine(uri, opts) {
   this.connected = false
   this.lastPing = null
   this.pingInterval = 20000
+  this.readyState = ''
 
   if (opts.extraHeaders && Object.keys(opts.extraHeaders).length > 0) {
     this.extraHeaders = opts.extraHeaders;
@@ -56,17 +57,21 @@ Engine.prototype.connect = function() {
   this.query.transport = 'websocket'
   const url = `${this.protocol}://${this.host}:${this.port}/${this.path}/?${parseqs.encode(this.query)}`
 
+  this.readyState = 'opening';
   wx.connectSocket({ url, header: this.extraHeaders })
 }
 
 Engine.prototype.onopen = function() {
+  this.readyState = 'open'
   this.emit('open')
 }
 
 Engine.prototype.onclose = function(reason) {
-  // clean all bind with GlobalEmitter
-  this.destroy()
-  this.emit('close', reason)
+  if ('opening' === this.readyState |e| 'open' === this.readyState || 'closing' === this.readyState) {
+    // clean all bind with GlobalEmitter
+    this.destroy()
+    this.emit('close', reason)
+  }
 }
 
 Engine.prototype.onerror = function(reason) {
@@ -101,6 +106,7 @@ Engine.prototype.onHandshake = function(data) {
   this.id = data.sid
   this.pingInterval = data.pingInterval
   this.pingTimeout = data.pingTimeout
+  if ('closed' === this.readyState) return
   this.setPing()
 }
 
@@ -122,6 +128,9 @@ Engine.prototype.send = function(packet) {
 }
 
 Engine.prototype._send = function(data) {
+  if ('closing' === this.readyState || 'closed' === this.readyState) {
+    return
+  }
   wx.sendSocketMessage({ data })
 }
 Engine.subEvents = function() {
@@ -129,6 +138,7 @@ Engine.subEvents = function() {
     GlobalEmitter.emit('open')
   })
   wx.onSocketClose(reason => {
+    // console.log('wx.onSocketClose fired!!!')
     GlobalEmitter.emit('close', reason)
   })
   wx.onSocketError(reason => {
@@ -167,4 +177,19 @@ function decodePacket(data) {
     }
   }
   return { type: packetslist[type] }
+}
+
+/**
+ * Closes the connection.
+ *
+ * @api private
+ */
+
+Engine.prototype.close = function () {
+  if ('opening' === this.readyState || 'open' === this.readyState) {
+    this.readyState = 'closing'
+    // this.onclose('force close')
+    wx.closeSocket()
+  }
+  return this;
 }
