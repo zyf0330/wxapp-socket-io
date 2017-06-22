@@ -57,7 +57,7 @@ Engine.prototype.connect = function() {
   this.query.transport = 'websocket'
   const url = `${this.protocol}://${this.host}:${this.port}/${this.path}/?${parseqs.encode(this.query)}`
 
-  this.readyState = 'opening';
+  this.readyState = 'opening'
   wx.connectSocket({ url, header: this.extraHeaders })
 }
 
@@ -67,7 +67,7 @@ Engine.prototype.onopen = function() {
 }
 
 Engine.prototype.onclose = function(reason) {
-  if ('opening' === this.readyState |e| 'open' === this.readyState || 'closing' === this.readyState) {
+  if ('opening' === this.readyState || 'open' === this.readyState || 'closing' === this.readyState) {
     // clean all bind with GlobalEmitter
     this.destroy()
     this.emit('close', reason)
@@ -166,6 +166,8 @@ Engine.prototype.destroy = function() {
   this.id = null
   this.writeBuffer = []
   this.prevBufferLen = 0
+
+  wx.closeSocket()
 }
 
 function decodePacket(data) {
@@ -188,8 +190,8 @@ function decodePacket(data) {
 Engine.prototype.close = function () {
   if ('opening' === this.readyState || 'open' === this.readyState) {
     this.readyState = 'closing'
-    // this.onclose('force close')
-    wx.closeSocket()
+    this.onclose('force close')
+    // wx.closeSocket()
   }
   return this;
 }

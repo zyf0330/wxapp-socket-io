@@ -582,6 +582,8 @@ Engine$1.prototype.destroy = function () {
   this.id = null;
   this.writeBuffer = [];
   this.prevBufferLen = 0;
+
+  wx.closeSocket();
 };
 
 function decodePacket(data) {
@@ -604,8 +606,8 @@ function decodePacket(data) {
 Engine$1.prototype.close = function () {
   if ('opening' === this.readyState || 'open' === this.readyState) {
     this.readyState = 'closing';
-    // this.onclose('force close')
-    wx.closeSocket();
+    this.onclose('force close');
+    // wx.closeSocket()
   }
   return this;
 };
