@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fanweixiao/wxapp-socket-io.git"
+    "url": "git+https://github.com/zyf0330/wxapp-socket-io.git"
   },
   "author": "C.C. <fanweixiao@gmail.com> (https://github.com/fanweixiao)",
   "contributors": [
@@ -24,10 +24,7 @@
     "wesocket"
   ],
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/fanweixiao/wxapp-socket-io/issues"
-  },
-  "homepage": "https://github.com/fanweixiao/wxapp-socket-io#readme",
+  "homepage": "https://github.com/zyf0330/wxapp-socket-io#readme",
   "dependencies": {
     "backo2": "^1.0.2",
     "component-bind": "^1.0.0",
