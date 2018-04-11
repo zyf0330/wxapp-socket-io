@@ -419,182 +419,186 @@ var index$6 = {
 	decode: decode
 };
 
-var GlobalEmitter = index$1({ hasEmitte: false });
-
 index$1(Engine$1.prototype);
 
 var packets = {
-  open: 0, // non-ws
-  close: 1, // non-ws
-  ping: 2,
-  pong: 3,
-  message: 4,
-  upgrade: 5,
-  noop: 6
+	open: 0, // non-ws
+	close: 1, // non-ws
+	ping: 2,
+	pong: 3,
+	message: 4,
+	upgrade: 5,
+	noop: 6
 };
 
 var packetslist = Object.keys(packets);
 
 function Engine$1(uri, opts) {
-  if (!(this instanceof Engine$1)) return new Engine$1(uri, opts);
+	if (!(this instanceof Engine$1)) return new Engine$1(uri, opts);
 
-  this.subs = [];
-  uri = index$5(uri);
-  this.protocol = uri.protocol;
-  this.host = uri.host;
+	this.subs = [];
+	uri = index$5(uri);
+	this.protocol = uri.protocol;
+	this.host = uri.host;
 
-  if (uri.query) opts.query = uri.query;
-  this.query = opts.query || {};
-  if ('string' === typeof this.query) this.query = index$6.decode(this.query);
+	if (uri.query) opts.query = uri.query;
+	this.query = opts.query || {};
+	if ('string' === typeof this.query) this.query = index$6.decode(this.query);
 
-  this.port = uri.port;
-  this.opts = this.opts || {};
-  this.path = opts.path.replace(/\/$/, '');
-  this.connected = false;
-  this.lastPing = null;
-  this.pingInterval = 20000;
-  this.readyState = '';
+	this.port = uri.port;
+	this.opts = this.opts || {};
+	this.path = opts.path.replace(/\/$/, '');
+	this.connected = false;
+	this.lastPing = null;
+	this.pingInterval = 20000;
+	this.readyState = '';
 
-  if (opts.extraHeaders && Object.keys(opts.extraHeaders).length > 0) {
-    this.extraHeaders = opts.extraHeaders;
-  }
+	if (opts.extraHeaders && Object.keys(opts.extraHeaders).length > 0) {
+		this.extraHeaders = opts.extraHeaders;
+	}
 
-  // init bind with GlobalEmitter
-  this.bindEvents();
+	// init bind with GlobalEmitter
+	this.GlobalEmitter = index$1({});
+	this.bindEvents();
+
+	this.wxSocketTask = null;
 }
 
 Engine$1.prototype.connect = function () {
-  if (!GlobalEmitter.hasEmitte) Engine$1.subEvents();
-  this.query.EIO = 3;
-  this.query.transport = 'websocket';
-  var url = this.protocol + '://' + this.host + ':' + this.port + '/' + this.path + '/?' + index$6.encode(this.query);
+	this.query.EIO = 3;
+	this.query.transport = 'websocket';
+	var url = this.protocol + '://' + this.host + ':' + this.port + '/' + this.path + '/?' + index$6.encode(this.query);
+	this.readyState = 'opening';
+	this.wxSocketTask = wx.connectSocket({ url: url, header: this.extraHeaders });
 
-  this.readyState = 'opening';
-  wx.connectSocket({ url: url, header: this.extraHeaders });
+	this.subEvents();
 };
 
 Engine$1.prototype.onopen = function () {
-  this.readyState = 'open';
-  this.emit('open');
+	this.readyState = 'open';
+	this.emit('open');
 };
 
 Engine$1.prototype.onclose = function (reason) {
-  if ('opening' === this.readyState || 'open' === this.readyState || 'closing' === this.readyState) {
-    // clean all bind with GlobalEmitter
-    this.destroy();
-    this.emit('close', reason);
-  }
+	if ('opening' === this.readyState || 'open' === this.readyState || 'closing' === this.readyState) {
+		// clean all bind with GlobalEmitter
+		this.destroy();
+		this.emit('close', reason);
+	}
 };
 
 Engine$1.prototype.onerror = function (reason) {
-  this.emit('error', reason);
-  // 如果 wx.connectSocket 还没回调 wx.onSocketOpen，而先调用 wx.closeSocket，那么就做不到关闭 WebSocket 的目的。
-  wx.closeSocket();
+	this.emit('error', reason);
+	// wx onOpen 回调后，关闭连接才能生效
+	if (this.readyState == 'open') {
+		this.wxSocketTask.close();
+	}
 };
 
 Engine$1.prototype.onpacket = function (packet) {
-  switch (packet.type) {
-    case 'open':
-      this.onHandshake(parsejson(packet.data));
-      break;
-    case 'pong':
-      this.setPing();
-      this.emit('pong');
-      break;
-    case 'error':
-      {
-        var error = new Error('server error');
-        error.code = packet.data;
-        this.onerror(error);
-        break;
-      }
-    case 'message':
-      this.emit('data', packet.data);
-      this.emit('message', packet.data);
-      break;
-  }
+	switch (packet.type) {
+		case 'open':
+			this.onHandshake(parsejson(packet.data));
+			break;
+		case 'pong':
+			this.setPing();
+			this.emit('pong');
+			break;
+		case 'error':
+			{
+				var error = new Error('server error');
+				error.code = packet.data;
+				this.onerror(error);
+				break;
+			}
+		case 'message':
+			this.emit('data', packet.data);
+			this.emit('message', packet.data);
+			break;
+	}
 };
 
 Engine$1.prototype.onHandshake = function (data) {
-  this.id = data.sid;
-  this.pingInterval = data.pingInterval;
-  this.pingTimeout = data.pingTimeout;
-  if ('closed' === this.readyState) return;
-  this.setPing();
+	this.id = data.sid;
+	this.pingInterval = data.pingInterval;
+	this.pingTimeout = data.pingTimeout;
+	if ('closed' === this.readyState) return;
+	this.setPing();
 };
 
 Engine$1.prototype.setPing = function () {
-  var _this = this;
+	var _this = this;
 
-  clearTimeout(this.pingIntervalTimer);
-  this.pingIntervalTimer = setTimeout(function () {
-    _this.ping();
-  }, this.pingInterval);
+	clearTimeout(this.pingIntervalTimer);
+	this.pingIntervalTimer = setTimeout(function () {
+		_this.ping();
+	}, this.pingInterval);
 };
 
 Engine$1.prototype.ping = function () {
-  this.emit('ping');
-  this._send(packets.ping + 'probe');
+	this.emit('ping');
+	this._send(packets.ping + 'probe');
 };
 
 Engine$1.prototype.write = Engine$1.prototype.send = function (packet) {
-  this._send([packets.message, packet].join(''));
+	this._send([packets.message, packet].join(''));
 };
 
 Engine$1.prototype._send = function (data) {
-  if ('closing' === this.readyState || 'closed' === this.readyState) {
-    return;
-  }
-  wx.sendSocketMessage({ data: data });
+	if ('closing' === this.readyState || 'closed' === this.readyState) {
+		return;
+	}
+	this.wxSocketTask.send({ data: data });
 };
-Engine$1.subEvents = function () {
-  wx.onSocketOpen(function () {
-    GlobalEmitter.emit('open');
-  });
-  wx.onSocketClose(function (reason) {
-    // console.log('wx.onSocketClose fired!!!')
-    GlobalEmitter.emit('close', reason);
-  });
-  wx.onSocketError(function (reason) {
-    GlobalEmitter.emit('error', reason);
-  });
-  wx.onSocketMessage(function (resp) {
-    GlobalEmitter.emit('packet', decodePacket(resp.data));
-  });
-  GlobalEmitter.hasEmitte = true;
+Engine$1.prototype.subEvents = function () {
+	var _this2 = this;
+
+	this.wxSocketTask.onOpen(function () {
+		_this2.GlobalEmitter.emit('open');
+	});
+	this.wxSocketTask.onClose(function (reason) {
+		// console.log('wxSocketTask.onClose fired!!!')
+		_this2.GlobalEmitter.emit('close', reason);
+	});
+	this.wxSocketTask.onError(function (reason) {
+		_this2.GlobalEmitter.emit('error', reason);
+	});
+	this.wxSocketTask.onMessage(function (resp) {
+		_this2.GlobalEmitter.emit('packet', decodePacket(resp.data));
+	});
 };
 
 Engine$1.prototype.bindEvents = function () {
-  this.subs.push(on(GlobalEmitter, 'open', index$2(this, 'onopen')));
-  this.subs.push(on(GlobalEmitter, 'close', index$2(this, 'onclose')));
-  this.subs.push(on(GlobalEmitter, 'error', index$2(this, 'onerror')));
-  this.subs.push(on(GlobalEmitter, 'packet', index$2(this, 'onpacket')));
+	this.subs.push(on(this.GlobalEmitter, 'open', index$2(this, 'onopen')));
+	this.subs.push(on(this.GlobalEmitter, 'close', index$2(this, 'onclose')));
+	this.subs.push(on(this.GlobalEmitter, 'error', index$2(this, 'onerror')));
+	this.subs.push(on(this.GlobalEmitter, 'packet', index$2(this, 'onpacket')));
 };
 
 Engine$1.prototype.destroy = function () {
-  var sub = void 0;
-  while (sub = this.subs.shift()) {
-    sub.destroy();
-  }
+	var sub = void 0;
+	while (sub = this.subs.shift()) {
+		sub.destroy();
+	}
 
-  clearTimeout(this.pingIntervalTimer);
-  this.readyState = 'closed';
-  this.id = null;
-  this.writeBuffer = [];
-  this.prevBufferLen = 0;
+	clearTimeout(this.pingIntervalTimer);
+	this.readyState = 'closed';
+	this.id = null;
+	this.writeBuffer = [];
+	this.prevBufferLen = 0;
 
-  wx.closeSocket();
+	this.wxSocketTask.close();
 };
 
 function decodePacket(data) {
-  var type = data.charAt(0);
-  if (data.length > 1) {
-    return {
-      type: packetslist[type],
-      data: data.substring(1)
-    };
-  }
-  return { type: packetslist[type] };
+	var type = data.charAt(0);
+	if (data.length > 1) {
+		return {
+			type: packetslist[type],
+			data: data.substring(1)
+		};
+	}
+	return { type: packetslist[type] };
 }
 
 /**
@@ -604,12 +608,12 @@ function decodePacket(data) {
  */
 
 Engine$1.prototype.close = function () {
-  if ('opening' === this.readyState || 'open' === this.readyState) {
-    this.readyState = 'closing';
-    this.onclose('force close');
-    // wx.closeSocket()
-  }
-  return this;
+	if ('opening' === this.readyState || 'open' === this.readyState) {
+		this.readyState = 'closing';
+		this.onclose('force close');
+		// this.wxSocketTask.close()
+	}
+	return this;
 };
 
 exports.types = ['CONNECT', 'DISCONNECT', 'EVENT', 'ACK', 'ERROR', 'BINARY_EVENT', 'BINARY_ACK'];
